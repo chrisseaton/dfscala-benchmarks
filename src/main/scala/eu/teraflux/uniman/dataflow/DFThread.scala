@@ -33,7 +33,6 @@ package eu.teraflux.uniman.dataflow
 
 import scala.collection.mutable.ListBuffer
 import scala.collection.mutable.ArraySeq
-import eu.teraflux.uniman.transactions.TMLib._
 
 object DFState extends Enumeration {
   type DFState = Value
@@ -93,7 +92,7 @@ abstract class DFThread(val manager: DFManager, val args: Int, inBarriers: List[
   def runX()
 
   def checkReady() = {
-    atomic{
+    synchronized{
       if (syncBits.isSet && inBarrierBits.isSet && state == Waiting) 
         state = Ready
       manager.wake()
@@ -103,7 +102,7 @@ abstract class DFThread(val manager: DFManager, val args: Int, inBarriers: List[
   def passToken(dft: DFThread, id: Int) {
      DFLogger.tokenPassed(this, dft, id)
     //tokens don't actually escape thread till cleanup at the end
-    atomic {
+    synchronized{
       tokenList += ((dft, id))
     }
   }
@@ -155,14 +154,18 @@ abstract class DFThread(val manager: DFManager, val args: Int, inBarriers: List[
 trait DFThread0[R] extends DFThread {  
   private val listenerList = new ListBuffer[Token[R]]
   protected var rval: R = _
+  private var notified = false
 
   def notifyListeners = {
+    synchronized {
     for (l <- listenerList) l(rval)
+    notified = true
+    }
   }
   
   def addListener(pass:Token[R]) = {
-    atomic {
-      if (state == Finished)
+    synchronized {
+      if (notified)
         pass(rval)
       else
         listenerList += (pass)
@@ -230,11 +233,17 @@ trait DFThread10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, R] extends DFThread9[T
   def token10:Token[T10] = new Token(arg10_= _)  
 }
 
-abstract class DFThread0X[R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+trait DFThread11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, R] extends DFThread10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, R]{
+  def arg11:T11
+  def arg11_= (value:T11):Unit
+  def token11:Token[T11] = new Token(arg11_= _)  
+}
+
+private[dataflow] abstract class DFThread0X[R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
   extends DFThread(manager, args, inBarriers, outBarriers, startThread)
   with DFThread0[R]
 
-abstract class DFThread1X[T1, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+private[dataflow] abstract class DFThread1X[T1, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
   extends DFThread0X[R](manager, args, inBarriers, outBarriers, startThread) 
   with DFThread1[T1,R] {
   private var _arg1: Option[T1] = None
@@ -261,7 +270,7 @@ abstract class DFThread1X[T1, R](manager: DFManager, args:Int, inBarriers: List[
   }
 }
 
-abstract class DFThread2X[T1, T2, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+private[dataflow] abstract class DFThread2X[T1, T2, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
   extends DFThread1X[T1, R](manager, args, inBarriers, outBarriers, startThread) 
   with DFThread2[T1, T2, R] {
   private var _arg2: Option[T2] = None
@@ -288,7 +297,7 @@ abstract class DFThread2X[T1, T2, R](manager: DFManager, args:Int, inBarriers: L
   }
 }
 
-abstract class DFThread3X[T1, T2, T3, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean)
+private[dataflow] abstract class DFThread3X[T1, T2, T3, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean)
   extends DFThread2X[T1, T2, R](manager, args, inBarriers, outBarriers, startThread)
   with DFThread3[T1, T2, T3, R]{
   
@@ -316,7 +325,7 @@ abstract class DFThread3X[T1, T2, T3, R](manager: DFManager, args:Int, inBarrier
   }
 }
 
-abstract class DFThread4X[T1, T2, T3, T4, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+private[dataflow] abstract class DFThread4X[T1, T2, T3, T4, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
   extends DFThread3X[T1, T2, T3, R](manager, args, inBarriers, outBarriers, startThread) 
   with DFThread4[T1, T2, T3, T4, R] {
   
@@ -344,7 +353,7 @@ abstract class DFThread4X[T1, T2, T3, T4, R](manager: DFManager, args:Int, inBar
   }
 }
 
-abstract class DFThread5X[T1, T2, T3, T4, T5, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+private[dataflow] abstract class DFThread5X[T1, T2, T3, T4, T5, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
   extends DFThread4X[T1, T2, T3, T4, R](manager, args, inBarriers, outBarriers, startThread) 
   with DFThread5[T1, T2, T3, T4, T5, R] {
   
@@ -372,7 +381,7 @@ abstract class DFThread5X[T1, T2, T3, T4, T5, R](manager: DFManager, args:Int, i
   }
 }
 
-abstract class DFThread6X[T1, T2, T3, T4, T5, T6, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+private[dataflow] abstract class DFThread6X[T1, T2, T3, T4, T5, T6, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
   extends DFThread5X[T1, T2, T3, T4, T5, R](manager, args, inBarriers, outBarriers, startThread) 
   with DFThread6[T1, T2, T3, T4, T5, T6, R] {
   
@@ -400,7 +409,7 @@ abstract class DFThread6X[T1, T2, T3, T4, T5, T6, R](manager: DFManager, args:In
   }
 }
 
-abstract class DFThread7X[T1, T2, T3, T4, T5, T6, T7, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+private[dataflow] abstract class DFThread7X[T1, T2, T3, T4, T5, T6, T7, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
   extends DFThread6X[T1, T2, T3, T4, T5, T6, R](manager, args, inBarriers, outBarriers, startThread) 
   with DFThread7[T1, T2, T3, T4, T5, T6, T7, R] {
   
@@ -428,7 +437,7 @@ abstract class DFThread7X[T1, T2, T3, T4, T5, T6, T7, R](manager: DFManager, arg
   }
 }
 
-abstract class DFThread8X[T1, T2, T3, T4, T5, T6, T7, T8, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+private[dataflow] abstract class DFThread8X[T1, T2, T3, T4, T5, T6, T7, T8, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
   extends DFThread7X[T1, T2, T3, T4, T5, T6, T7, R](manager, args, inBarriers, outBarriers, startThread) 
   with DFThread8[T1, T2, T3, T4, T5, T6, T7, T8, R] {
   
@@ -456,7 +465,7 @@ abstract class DFThread8X[T1, T2, T3, T4, T5, T6, T7, T8, R](manager: DFManager,
   }
 }
 
-abstract class DFThread9X[T1, T2, T3, T4, T5, T6, T7, T8, T9, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+private[dataflow] abstract class DFThread9X[T1, T2, T3, T4, T5, T6, T7, T8, T9, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
   extends DFThread8X[T1, T2, T3, T4, T5, T6, T7, T8, R](manager, args, inBarriers, outBarriers, startThread) 
   with DFThread9[T1, T2, T3, T4, T5, T6, T7, T8, T9, R] {
   
@@ -484,7 +493,7 @@ abstract class DFThread9X[T1, T2, T3, T4, T5, T6, T7, T8, T9, R](manager: DFMana
   }
 }
 
-abstract class DFThread10X[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+private[dataflow] abstract class DFThread10X[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
   extends DFThread9X[T1, T2, T3, T4, T5, T6, T7, T8, T9, R](manager, args, inBarriers, outBarriers, startThread) 
   with DFThread10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, R] {
   
@@ -512,7 +521,35 @@ abstract class DFThread10X[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, R](manager: 
   }
 }
 
-class DFThread0Runable[R](f: () => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] abstract class DFThread11X[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, R](manager: DFManager, args:Int, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier],  startThread:Boolean) 
+  extends DFThread10X[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, R](manager, args, inBarriers, outBarriers, startThread) 
+  with DFThread11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, R] {
+  
+  private var _arg11: Option[T11] = None
+  
+  def arg11:T11 = {
+    _arg11 match {
+      case None => throw new Exception("Tried to read an unset argument")
+      case Some(arg) => arg
+    }
+  }
+  def arg11_= (value:T11):Unit = {
+    _arg11 match {
+      case None => { _arg11 = Some(value)
+                     if(startThread)
+                     {
+                       DFLogger.tokenPassed(manager, this, 11)
+                       receiveToken(11)
+                     }
+                     else
+                       DFManager.currentThread.get().passToken(this,11)
+                   }
+      case Some(arg) => throw new Exception("Tried to write an already written argument")
+    }
+  }
+}
+
+private[dataflow] class DFThread0Runable[R](f: () => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread0X[R](manager, 0, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f()
@@ -520,7 +557,7 @@ class DFThread0Runable[R](f: () => R, inBarriers: List[DFBarrier], outBarriers: 
   }
 }
 
-class DFThread1Runable[T1, R](f: (T1) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] class DFThread1Runable[T1, R](f: (T1) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread1X[T1, R](manager, 1, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f(arg1)
@@ -528,7 +565,7 @@ class DFThread1Runable[T1, R](f: (T1) => R, inBarriers: List[DFBarrier], outBarr
   }
 }
 
-class DFThread2Runable[T1, T2, R](f: (T1, T2) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] class DFThread2Runable[T1, T2, R](f: (T1, T2) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread2X[T1, T2, R](manager, 2, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f(arg1, arg2)
@@ -536,7 +573,7 @@ class DFThread2Runable[T1, T2, R](f: (T1, T2) => R, inBarriers: List[DFBarrier],
   }
 }
 
-class DFThread3Runable[T1, T2, T3, R](f: (T1, T2, T3) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] class DFThread3Runable[T1, T2, T3, R](f: (T1, T2, T3) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread3X[T1, T2, T3, R](manager, 3, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f(arg1, arg2, arg3)
@@ -544,7 +581,7 @@ class DFThread3Runable[T1, T2, T3, R](f: (T1, T2, T3) => R, inBarriers: List[DFB
   }
 }
 
-class DFThread4Runable[T1, T2, T3, T4, R](f: (T1, T2, T3, T4) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] class DFThread4Runable[T1, T2, T3, T4, R](f: (T1, T2, T3, T4) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread4X[T1, T2, T3, T4, R](manager, 4, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f(arg1, arg2, arg3, arg4)
@@ -552,7 +589,7 @@ class DFThread4Runable[T1, T2, T3, T4, R](f: (T1, T2, T3, T4) => R, inBarriers: 
   }
 }
 
-class DFThread5Runable[T1, T2, T3, T4, T5, R](f: (T1, T2, T3, T4, T5) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] class DFThread5Runable[T1, T2, T3, T4, T5, R](f: (T1, T2, T3, T4, T5) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread5X[T1, T2, T3, T4, T5, R](manager, 5, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f(arg1, arg2, arg3, arg4, arg5)
@@ -560,7 +597,7 @@ class DFThread5Runable[T1, T2, T3, T4, T5, R](f: (T1, T2, T3, T4, T5) => R, inBa
   }
 }
 
-class DFThread6Runable[T1, T2, T3, T4, T5, T6, R](f: (T1, T2, T3, T4, T5, T6) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] class DFThread6Runable[T1, T2, T3, T4, T5, T6, R](f: (T1, T2, T3, T4, T5, T6) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread6X[T1, T2, T3, T4, T5, T6, R](manager, 6, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f(arg1, arg2, arg3, arg4, arg5, arg6)
@@ -568,7 +605,7 @@ class DFThread6Runable[T1, T2, T3, T4, T5, T6, R](f: (T1, T2, T3, T4, T5, T6) =>
   }
 }
 
-class DFThread7Runable[T1, T2, T3, T4, T5, T6, T7, R](f: (T1, T2, T3, T4 ,T5, T6, T7) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] class DFThread7Runable[T1, T2, T3, T4, T5, T6, T7, R](f: (T1, T2, T3, T4 ,T5, T6, T7) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread7X[T1, T2, T3, T4, T5, T6, T7, R](manager, 7, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
@@ -576,7 +613,7 @@ class DFThread7Runable[T1, T2, T3, T4, T5, T6, T7, R](f: (T1, T2, T3, T4 ,T5, T6
   }
 }
 
-class DFThread8Runable[T1, T2, T3, T4, T5, T6, T7, T8, R](f: (T1, T2, T3, T4 ,T5, T6, T7, T8) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] class DFThread8Runable[T1, T2, T3, T4, T5, T6, T7, T8, R](f: (T1, T2, T3, T4 ,T5, T6, T7, T8) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread8X[T1, T2, T3, T4, T5, T6, T7, T8, R](manager, 8, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8)
@@ -584,7 +621,7 @@ class DFThread8Runable[T1, T2, T3, T4, T5, T6, T7, T8, R](f: (T1, T2, T3, T4 ,T5
   }
 }
 
-class DFThread9Runable[T1, T2, T3, T4, T5, T6, T7, T8, T9, R](f: (T1, T2, T3, T4 ,T5, T6, T7, T8, T9) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] class DFThread9Runable[T1, T2, T3, T4, T5, T6, T7, T8, T9, R](f: (T1, T2, T3, T4 ,T5, T6, T7, T8, T9) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread9X[T1, T2, T3, T4, T5, T6, T7, T8, T9, R](manager, 9, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9)
@@ -592,10 +629,18 @@ class DFThread9Runable[T1, T2, T3, T4, T5, T6, T7, T8, T9, R](f: (T1, T2, T3, T4
   }
 }
 
-class DFThread10Runable[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, R](f: (T1, T2, T3, T4 ,T5, T6, T7, T8, T9, T10) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+private[dataflow] class DFThread10Runable[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, R](f: (T1, T2, T3, T4 ,T5, T6, T7, T8, T9, T10) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
   extends DFThread10X[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, R](manager, 10, inBarriers, outBarriers, startThread) {
   def runX() = {
     rval = f(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
+    notifyListeners
+  }
+}
+
+private[dataflow] class DFThread11Runable[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, R](f: (T1, T2, T3, T4 ,T5, T6, T7, T8, T9, T10, T11) => R, inBarriers: List[DFBarrier], outBarriers: List[DFBarrier], startThread:Boolean, manager: DFManager) 
+  extends DFThread11X[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, R](manager, 11, inBarriers, outBarriers, startThread) {
+  def runX() = {
+    rval = f(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11)
     notifyListeners
   }
 }
@@ -676,16 +721,16 @@ extends DFLThread[E,R](manager, args, inBarriers, outBarriers, startThread)
   protected def listArg:List[E] = _arg1
   
   def arg1_= (value:E):Unit = {
-	atomic{
-	  _arg1 = value::_arg1
-	  if(startThread)
-	  {
+  synchronized{
+    _arg1 = value::_arg1
+    if(startThread)
+    {
             DFLogger.tokenPassed(manager, this, 1)
-	    receiveToken(1)
-	  }
-	  else
-	  DFManager.currentThread.get().passToken(this,1)  
-	}
+      receiveToken(1)
+    }
+    else
+    DFManager.currentThread.get().passToken(this,1)  
+  }
   }
   
   def arg1:E = throw new Exception("Attempted to read indvidual elements out of a collector thread")
@@ -696,7 +741,7 @@ extends DFLThread[E,R](manager, args, inBarriers, outBarriers, startThread)
 
   override def receiveToken(id: Int) = {
     id match {
-      case 1 => atomic { 
+      case 1 => synchronized {
       assert(received_inputs != no_inputs, "Too many inputs passed: " + received_inputs + " != " + no_inputs /* + " " + (received_inputs != no_inputs).toString */)
       received_inputs += 1
       if(received_inputs == no_inputs)
@@ -735,25 +780,25 @@ abstract class DFOrderedListThread[E, R](manager: DFManager, args:Int,  no_input
   def listArg:List[E] = _arg1.toList
   
   def update(pos:Int, value:E):Unit = {
-	atomic{ 
-	  assert(!arrived(pos), "Value has alread been set")
-	  arrived(pos) = true
-	  _arg1(pos) = value
-	  if(startThread)
-	  {
-	    DFLogger.tokenPassed(manager, this, 1)
-	    receiveToken(1)
-	  }
-	  else
-	    DFManager.currentThread.get().passToken(this,1)
-	}
+  synchronized{ 
+    assert(!arrived(pos), "Value has alread been set")
+    arrived(pos) = true
+    _arg1(pos) = value
+    if(startThread)
+    {
+      DFLogger.tokenPassed(manager, this, 1)
+      receiveToken(1)
+    }
+    else
+      DFManager.currentThread.get().passToken(this,1)
+  }
   }
   
   def token(pos:Int):Token[E] = new Token(update(pos, _))
   
   override def receiveToken(id: Int) = {
     id match {
-      case 1 => atomic { 
+      case 1 => synchronized { 
       recieved_inputs += 1
       if(recieved_inputs == no_inputs)
         super.receiveToken(id)
