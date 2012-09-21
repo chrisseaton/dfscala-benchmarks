@@ -721,16 +721,16 @@ extends DFLThread[E,R](manager, args, inBarriers, outBarriers, startThread)
   protected def listArg:List[E] = _arg1
   
   def arg1_= (value:E):Unit = {
-  synchronized{
-    _arg1 = value::_arg1
-    if(startThread)
-    {
+    synchronized{
+	  _arg1 = value::_arg1
+	  if(startThread)
+	  {
             DFLogger.tokenPassed(manager, this, 1)
-      receiveToken(1)
-    }
-    else
-    DFManager.currentThread.get().passToken(this,1)  
-  }
+	    receiveToken(1)
+	  }
+	  else
+	  DFManager.currentThread.get().passToken(this,1)  
+	}
   }
   
   def arg1:E = throw new Exception("Attempted to read indvidual elements out of a collector thread")
@@ -780,18 +780,18 @@ abstract class DFOrderedListThread[E, R](manager: DFManager, args:Int,  no_input
   def listArg:List[E] = _arg1.toList
   
   def update(pos:Int, value:E):Unit = {
-  synchronized{ 
-    assert(!arrived(pos), "Value has alread been set")
-    arrived(pos) = true
-    _arg1(pos) = value
-    if(startThread)
-    {
-      DFLogger.tokenPassed(manager, this, 1)
-      receiveToken(1)
-    }
-    else
-      DFManager.currentThread.get().passToken(this,1)
-  }
+	synchronized { 
+	  assert(!arrived(pos), "Value has alread been set")
+	  arrived(pos) = true
+	  _arg1(pos) = value
+	  if(startThread)
+	  {
+	    DFLogger.tokenPassed(manager, this, 1)
+	    receiveToken(1)
+	  }
+	  else
+	    DFManager.currentThread.get().passToken(this,1)
+	}
   }
   
   def token(pos:Int):Token[E] = new Token(update(pos, _))

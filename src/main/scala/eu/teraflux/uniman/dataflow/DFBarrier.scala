@@ -31,7 +31,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package eu.teraflux.uniman.dataflow
 import scala.collection.mutable.ListBuffer
-import eu.teraflux.uniman.transactions.TMLib._
 
 object DFBarrier {
   val NoBarrier:DFBarrier = new DFVoidBarrier
@@ -58,7 +57,7 @@ class DFBarrier(sC: Int) {
 
   def registerOutThread(dft: DFThread) {
     DFLogger.threadFromBarrier(dft, this)
-    atomic {
+    synchronized {
     if (syncCount == 0 && ready)
       dft.signalFromBarrier(this)
     else
@@ -75,7 +74,7 @@ class DFBarrier(sC: Int) {
   def signal() {
     var signal: Boolean = false
 
-    atomic {
+    synchronized {
       syncCount -= 1
       signal = (syncCount == 0 && ready)
     }
@@ -87,7 +86,7 @@ class DFBarrier(sC: Int) {
   def makeReady() {
     var signal: Boolean = false
 
-    atomic {
+    synchronized {
       ready = true
       signal = (syncCount == 0)
     }

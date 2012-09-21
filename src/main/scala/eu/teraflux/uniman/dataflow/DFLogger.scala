@@ -116,7 +116,6 @@ class NullLogger extends DFLogger {
 class FunctionalDFLogger extends DFLogger {
   import scala.collection.mutable.HashMap
   import scala.xml
-  import eu.teraflux.uniman.transactions.TMLib._
   
   protected class Thread(manager:Int, parent:Int, noArgs:Int, startthread:Boolean, callStack:Array[StackTraceElement]){
     var start:Option[Long]=None
@@ -338,7 +337,7 @@ class FunctionalDFLogger extends DFLogger {
   }
   
   def getThreadID:Int = {
-    atomic{
+    synchronized{
           threadID += 1
           threadID
        }
@@ -380,7 +379,7 @@ class FunctionalDFLogger extends DFLogger {
   }
   
   def getManagerID:Int = {
-    atomic{ 
+    synchronized{ 
       managerID += 1
       managerID
     }
@@ -422,8 +421,6 @@ class DataflowGraphLogger extends DFLogger {
   import scala.collection.mutable.Map
   import scala.collection.mutable.Set
   
-  import eu.teraflux.uniman.transactions.TMLib.atomic
-  
   val threadLogMap = Map[DFThread, ThreadLog]()
   
   class ThreadLog(val dfthread : DFThread, val parent : ThreadLog) {
@@ -442,43 +439,43 @@ class DataflowGraphLogger extends DFLogger {
   val nullThread = new ThreadLog(null, null)
   
   def threadCreated(child:DFThread, parent:DFThread) {
-    atomic {
+    synchronized{
       threadLogMap += (child -> new ThreadLog(child, threadLogMap(parent)))
     }
   }
   
   def threadCreated(child:DFThread, manager:DFManager) {
-    atomic {
+    synchronized {
       threadLogMap += (child -> new ThreadLog(child, null))
     }
   }
   
   def tokenPassed(from:DFThread, to:DFThread, argNo:Int) {
-    atomic {
+    synchronized {
       threadLogMap(from).addDependent(threadLogMap(to))
     }
   }
   
   def tokenPassed(from:DFManager, to:DFThread, argNo:Int) {
-    atomic {
+    synchronized {
       managerThread.addDependent(threadLogMap(to))
     }
   }
   
   def nullTokenPassed(from:DFThread) {
-    atomic {
+    synchronized {
       threadLogMap(from).addDependent(nullThread)
     }
   }
   
   def threadStarted(thread:DFThread) {
-    val threadLog = atomic{threadLogMap(thread)}
+    val threadLog = synchronized{threadLogMap(thread)}
     threadLog.runningThread = Thread.currentThread.getName
     threadLog.startTime = System.nanoTime
   }
   
   def threadFinished(thread:DFThread) {
-    atomic {
+    synchronized {
       threadLogMap(thread).endTime = System.nanoTime
     }
   }
