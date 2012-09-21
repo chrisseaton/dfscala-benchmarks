@@ -1,5 +1,7 @@
 /*
 
+DFScala
+
 Copyright (c) 2010-2012, The University of Manchester
 All rights reserved.
 
@@ -34,18 +36,24 @@ import scala.collection.mutable.ListBuffer
 import java.io.BufferedReader
 import java.io.FileReader
 import scala.util.Random
+import eu.teraflux.uniman.dataflow.benchmark.Timer
 
 object KMeans extends DFApp{
-  private var noThreads:Int = 8
+  private var noThreads:Int = 1
   private var noClusters:Int = 16
-  private var filename:String = "/home/goodmand/workspace/DFLib/trunk/eu/teraflux/uniman/dataflow/benchmark/kmeans/input/random50000_12.txt"
+  private var filename:String = null
   var updated:Boolean = true
+  
+  var points:Array[Point] = null
+   
 
   def DFMain(args:Array[String]) {
     getArgs(args)
-    val points:Array[Point] = setPoints()
+    points = setPoints()
+    DFManager.setThreadNumber(noThreads)
+    println("\nThreads: " + noThreads)
     val clusters:Array[List[Double]] = setClusters(points, noClusters)
-    val k = new KMeansInstance(points, clusters, noThreads)
+    val k = new KMeansInstance(points, clusters)
     k.computePoints()
   }
 
@@ -53,13 +61,16 @@ object KMeans extends DFApp{
     var error:Boolean = false
 
     var i:Int = 0
-    while(i<args.length) {
-      if (args(i).equals("-t"))       {noThreads=Integer.parseInt(args(i+1)); i+=1 }
-      else if (args(i).equals("-c")) {noClusters=Integer.parseInt(args(i+1)); i+=1 }
+    while (i < args.length) {
+      if (args(i).equals("-c")) {noClusters=Integer.parseInt(args(i+1)); i+=1 }
       else if (args(i).equals("-f")) {filename=args(i+1); i+=1 }
+      else if (args(i).equals("-t")) {noThreads=Integer.parseInt(args(i+1)); i+=1 }
       else error = true
       i+=1
     }
+
+    if (filename == null)
+      error = true
     
     if (error)
       displayUsage("KMeans")
@@ -118,9 +129,9 @@ object KMeans extends DFApp{
       var cluster:Int = 0
       var dist:Double = distance(clusters(0))
       val noClusters = clusters.length
-      for (i<- 1 to noClusters-1) {
+      for (i<- 1 until noClusters) {
         val d2:Double = distance(clusters(i))
-        if(d2<dist) {
+        if(d2 < dist) {
           dist = d2
           cluster = i
         }
@@ -136,7 +147,7 @@ object KMeans extends DFApp{
     }
   }
 
-  private class KMeansInstance(points:Array[Point], clusters:Array[List[Double]], noThreads:Int) {
+  private class KMeansInstance(points:Array[Point], clusters:Array[List[Double]]) {
     var iterations:Int = 0
     val noDimensions:Int = clusters(0).length
     val noPoints:Int = points.length
@@ -144,6 +155,7 @@ object KMeans extends DFApp{
     val pointsPerThread:Int = 1 + (noPoints-1)/noThreads
     
     def computePoints() {
+      Timer.start()
       //println("StartCP")
       iterations += 1;
       var start = 0
@@ -154,7 +166,7 @@ object KMeans extends DFApp{
       val reduction = DFManager.createThread(computeClusters _)
       collector.addListener(reduction.token1)
 
-      while(end<noPoints) {
+      while (end < noPoints) {
         val thread = DFManager.createThread(computePointsSection _)
         thread.arg1  = start
         thread.arg2 = end
@@ -181,11 +193,13 @@ object KMeans extends DFApp{
      if(updated) {
         updated = false
         generateNewClusters(input)
+        println(Timer.stop())
         computePoints()
       }
-      else
-        printCluster()
-      //println("End Compute Clusters")
+      else 
+      {
+        println(Timer.stop())
+      }
     }
 
     def computePointsSection(start:Int, end:Int, collector:Token[(Array[List[Double]], Array[Int])]) {
@@ -197,10 +211,10 @@ object KMeans extends DFApp{
       for(i<- 1 to noDimensions)
         l + 0
       val zero:List[Double] = l.toList
-      for(j<-0 to noClusters - 1)
+      for(j<-0 until noClusters)
         PC(j) = zero
 
-      for (i<- start to end-1) {
+      for (i<- start until end) {
         val cluster:Int = points(i).calculateCluster(clusters)
         PC(cluster) = List.map2(PC(cluster),points(i).location) ((x,y) => x + y)
         PCC(cluster) += 1

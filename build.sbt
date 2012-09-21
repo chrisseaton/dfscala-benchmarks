@@ -1,4 +1,4 @@
-name := "dfscala"
+name := "dfscala-benchmarks"
 
 version := "0.1"
 

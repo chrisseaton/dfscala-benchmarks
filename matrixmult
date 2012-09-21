@@ -3,4 +3,4 @@
 export CLASSPATH="$CLASSPATH:lib/muts_2.8-rv41.jar:lib/dfscala_2.9.1-0.1.jar:target/scala-2.9.1/classes"
 export JAVA_OPTS="$JAVA_OPTS -javaagent:lib/muts_2.8-rv41.jar -Xmx1G -Xms1G"
 
-scala -nobootcp -howtorun:object eu.teraflux.uniman.dataflow.benchmark.matrixmult.BlockMatrixMain "$@"
+scala -nobootcp -howtorun:object eu.teraflux.uniman.dataflow.benchmark.BlockMatrixMain "$@"
