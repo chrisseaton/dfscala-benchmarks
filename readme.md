@@ -57,9 +57,10 @@ The inputs for KMeans come from STAMP [2]. See input/kmeans/stamp-licence.txt.
 References
 ----------
 
-[1] D. Goodman, S. Khan, C. Seaton, B. Khan, M. Luján, and I. Watson.
-DFScala: High level dataflow support for Scala. In Second International
-Workshop on Data-Flow Models For Extreme Scale Computing (DFM), 2012.
+[1] D. Goodman, S. Khan, C. Seaton, Y. Guskov, B. Khan, M. Luján, and I.
+Watson. DFScala: High level dataflow support for Scala. In Proceedings of the
+Second International Workshop on Data-Flow Models For Extreme Scale Computing
+(DFM), 2012.
 
 [2] C. C. Minh, J. Chung, C. Kozyrakis, and K. Olukotun. STAMP: Stanford
 transactional applications for multi-processing. In Proceedings of IEEE

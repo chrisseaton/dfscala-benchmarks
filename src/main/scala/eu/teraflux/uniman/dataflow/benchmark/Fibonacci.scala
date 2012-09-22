@@ -1,7 +1,5 @@
 /*
 
-DFScala
-
 Copyright (c) 2010-2012, The University of Manchester
 All rights reserved.
 
@@ -29,31 +27,26 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-package eu.teraflux.uniman.dataflow
+package eu.teraflux.uniman.dataflow.benchmark
 
-//Rewrite efficiently.
-class BitMap(nBits: Int) {
-  var bMap = new Array[Boolean](nBits)
-  val size = nBits
-  def set(i: Int): Unit = { bMap(i - 1) = true }
-  def clear(i: Int): Unit = { bMap(i - 1) = false }
-  def isSet(): Boolean = if (nBits == 0) true else { bMap.reduceLeft[Boolean]({ (acc, n) => acc && n }) }
-  def isSet(i: Int): Boolean = bMap(i - 1)
-  def setCount(): Int = if (nBits == 0) 0 else { bMap.foldLeft(0)((acc, n) => if (n) acc + 1 else acc) }
+import eu.teraflux.uniman.dataflow._
+import eu.teraflux.uniman.dataflow.Dataflow._
 
-  override def toString(): String = {
-    val string = new StringBuilder()
-    if (nBits == 0)
-      string.append("No Imputs")
+object Fibonacci extends DFApp{
+  def DFMain(args:Array[String]) = {
+    thread(fib _, args(0).toInt, new Token((x: Int) => { println("result = " + x) }))
+  }
+
+  def fib(n: Int, out: Token[Int]) {
+    if(n <= 2)
+      out(1)
     else {
-      string.append("0: ")
-      string.append(if (bMap(0)) "received" else "waiting")
-      var i = 1
-      while (i < nBits) {
-        string.append(", " + i + ": " + (if (bMap(i)) "received" else "waiting"))
-        i += 1
-      }
+      var adder = thread((x: Int, y: Int, out: Token[Int]) => out(x + y))
+
+      thread(fib _, n - 1, adder.token1)
+      thread(fib _, n - 2, adder.token2)
+
+      adder(Blank, Blank, out)
     }
-    string.toString
   }
 }
