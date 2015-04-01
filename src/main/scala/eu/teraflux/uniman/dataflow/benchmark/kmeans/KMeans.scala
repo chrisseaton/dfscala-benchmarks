@@ -99,7 +99,7 @@ object KMeans extends DFApp{
     val l = new ListBuffer[Point]()
 
     while (in.ready())
-      l + new Point(in.readLine().split(" ").toList.tail.map(s=>java.lang.Double.parseDouble(s)))
+      l += new Point(in.readLine().split(" ").toList.tail.map(s=>java.lang.Double.parseDouble(s)))
 
     in.close()
 
@@ -202,6 +202,10 @@ object KMeans extends DFApp{
       }
     }
 
+    def map2[A,B,C](left: List[A], right: List[B])(f: (A, B) => C): List[C] = {
+      (left zip right).map(t => f(t._1, t._2))
+    }
+
     def computePointsSection(start:Int, end:Int, collector:Token[(Array[List[Double]], Array[Int])]) {
       //println("Start Compute points " + start + ", " + end)
       val PC = new Array[List[Double]](noClusters)
@@ -209,14 +213,14 @@ object KMeans extends DFApp{
 
       val l = new ListBuffer[Double]()
       for(i<- 1 to noDimensions)
-        l + 0
+        l += 0
       val zero:List[Double] = l.toList
       for(j<-0 until noClusters)
         PC(j) = zero
 
       for (i<- start until end) {
         val cluster:Int = points(i).calculateCluster(clusters)
-        PC(cluster) = List.map2(PC(cluster),points(i).location) ((x,y) => x + y)
+        PC(cluster) = map2(PC(cluster), points(i).location)((x,y) => x + y)
         PCC(cluster) += 1
       }
 
@@ -232,7 +236,7 @@ object KMeans extends DFApp{
     }    
 
     def sumClusters(clusters1:(Array[List[Double]],Array[Int]),clusters2:(Array[List[Double]],Array[Int])):(Array[List[Double]],Array[Int]) = {
-      (clusters1._1 zip clusters2._1 map (x => List.map2(x._1, x._2)((y,z) => y + z)), clusters1._2 zip clusters2._2 map (x => x._1 + x._2))
+      (clusters1._1 zip clusters2._1 map (x => map2(x._1, x._2)((y,z) => y + z)), clusters1._2 zip clusters2._2 map (x => x._1 + x._2))
     }
 
     def printCluster()

@@ -23,7 +23,7 @@ See licence.txt.
 Dependencies
 ------------
 
-*   Scala 2.9.1
+*   Scala 2.11.0
 *   SBT 0.11
 *   DFScala 0.1 (included)
 *   MUTS 2.8 rv41 (included)
